@@ -1,3 +1,3 @@
 # Data Science Portfolios
 
-This page contains all my data science project codes. Feel free to comment!
+This is a repository of codes from my data science projects. Feel free to comment!
