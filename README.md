@@ -1,3 +1,3 @@
-# Data Science Portfolios
+## Data Science Projects
 
-This is a repository of codes from my data science projects. Feel free to comment!
+This is a repository for my data science projects from coursework, datathon competitions, and research projects. 
