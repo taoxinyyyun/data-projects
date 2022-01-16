@@ -1,0 +1,183 @@
+---
+title: "R Notebook on parametric bootstrap and resampling"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+This notebook replicates the code in the slides
+
+I generate a sample of size $n=11$ from a double exponential distribution, i.e. 
+$$
+f_\theta(x)=\frac{1}{2}\exp(-|x-\theta|)
+$$
+and the true value of the parameter is 
+$$
+\boxed{
+\theta_0=0
+}\;.
+$$
+
+We are interested in estimating $\theta_0$ which is equal to 0 here. 
+
+```{r}
+library(distr)
+```
+Now I generate a dataset of size n=11 from a double exponential distribution with $\theta_0=0$. (I set the seed to $\pi$ for reproducibility; $\pi$ is an arbitrary choice of course)
+```{r}
+trueParameter<-0
+set.seed(pi)
+D <- DExp(rate = 1) 
+smallDataset<-r(D)(11)+trueParameter
+```
+What's the mean? What's the median? (Recall median is MLE here)
+```{r}
+mean(smallDataset)
+median(smallDataset)
+```
+Let's look at the data
+```{r}
+smallDataset
+```
+## Plotting log-likelihood
+Now I plot the log-likelihood function, up to a constant... In other words, I plot 
+$$
+l(\theta)=-\sum_{i=1}^{11} |X_i-\theta|\;, \text{ where } X_i \text{ are the observations in my dataset}
+$$
+I dropped the $-11 \log(2)$ term because it changes nothing to the maximizer of the likelihood function. 
+```{r}
+mythetas<-seq(from=-5,by=.01,to=5)
+myLogLik<-rep(0,length(mythetas))
+for (k in (1:length(mythetas))){
+  myLogLik[k]=-sum(abs(smallDataset-mythetas[k]))    
+}
+plot(mythetas,myLogLik,type="l")
+abline(v=0,col="red",lwd=4)
+title("Log lik (up to a constant) and true value of parameter")
+```
+
+Recall that we found that the median of the data is $\hat{\theta}_{MLE}=\text{median}=0.06807071$ so very close to the true parameter $\theta_0=0$. We see that in the log-likelihood function.  
+
+## Parametric bootstrap
+Now I do a parametric bootstrap: I generate 1000 datasets, each with 11 observations sampled from 
+$$
+f_{\hat{\theta}_{MLE}}(x)=\frac{1}{2}\exp(-|x-\hat{\theta}_{MLE}|)\;.
+$$
+\textbf{Technical note}: to do so, I use the fact that I can do that by generating 11 observations from a double exponential with parameter 0 and add $\hat{\theta}_{MLE}$ to the resulting data. 
+
+```{r}
+numBoot<-1000
+myFirstParamBoot<-rep(0,numBoot)
+D <- DExp(rate = 1)
+thetaHat<-median(smallDataset)
+shiftFactor<-rep(thetaHat,11)
+#11 is the size of the small dataset 
+
+for (k in 1:numBoot){
+  thisDataSet<-r(D)(11)+shiftFactor #generates a dataset of size 11 from the right distribution
+  myFirstParamBoot[k]<-median(thisDataSet) #computes the median (MLE here) for this dataset
+  }
+hist(myFirstParamBoot,breaks=50)
+summary(myFirstParamBoot)
+```
+
+```{r}
+hist(myFirstParamBoot-thetaHat,breaks=50)
+summary(myFirstParamBoot-thetaHat)
+```
+Look at the quantiles of $\hat{\theta}^*-\hat{\theta}_{MLE}$
+```{r}
+quantile(myFirstParamBoot-thetaHat,probs = c(.025,.975)) 
+```
+
+Pivotal interval computation
+```{r}
+sort(thetaHat-quantile(myFirstParamBoot-thetaHat,probs = c(.025,.975)) )
+
+#that is the 95% CI
+```
+### Large sample MLE approximation CI
+Recall that in this case, the CI is just 
+$$
+\left[\hat{\theta}_{MLE}]\pm \frac{q(1-\alpha/2)}{\sqrt{nI(\hat{\theta}_{MLE})}}\right]
+$$
+Since we are dealing with a double exponential distribution, $I(\theta)=1$. So that leads to a CI of 
+$$
+\left[\hat{\theta}_{MLE}]\pm \frac{q(1-\alpha/2)}{\sqrt{n}}\right]
+$$
+n=11 in our example so we finally get for the theoretical CI:
+```{r}
+#theoretical CI 
+c(thetaHat-1.96/sqrt(11),thetaHat+1.96/sqrt(11))
+```
+
+# Non parametric version
+
+In the non-parametric case, we don't assume we know the family of distributions the data comes from... So our best guess is the just the data itself, or what we would technically call the empirical distribution of the data. So no more $f_{\hat{\theta}}$... 
+
+When generating new datasets, we simply resample (without replacement, otherwise we'd always get the same dataset... try it if you're not convinced) from the data. And do the same operations as before for CI etc... 
+
+```{r}
+set.seed(17)
+numBoot<-1000
+myFirstNonParamBoot<-rep(0,numBoot)
+initialSampleSize<-length(smallDataset)
+#11 is the size of the small dataset 
+
+for (k in 1:numBoot){
+  thisDataSet<-sample(x=smallDataset,replace = TRUE, size = initialSampleSize) #generates a dataset of size 11 by resampling from the original data/empirical distribution. This is the only difference with our parametric bootstrap chunk!
+  myFirstNonParamBoot[k]<-median(thisDataSet) #computes the median/stat of interest here for this dataset
+  }
+hist(myFirstNonParamBoot,breaks=50)
+summary(myFirstNonParamBoot)
+```
+
+```{r}
+hist(myFirstNonParamBoot-thetaHat,breaks=50)
+summary(myFirstNonParamBoot-thetaHat)
+```
+Look at the quantiles of $\hat{\theta}^*-\hat{\theta}_{MLE}$ in the non-parametric bootstrap case
+```{r}
+quantile(myFirstNonParamBoot-thetaHat,probs = c(.025,.975)) 
+```
+
+Pivotal interval computation
+```{r}
+sort(thetaHat-quantile(myFirstNonParamBoot-thetaHat,probs = c(.025,.975)) )
+```
+
+## Non-parametric bootstrap using the mean
+There's an issue with the median in such a small sample size: it can only be one of our initial observations. So it may look like the non-parametric bootstrap is not such a great method, when in fact it's widely used, super important and great (I think); especially if the sample size is a bit bigger. 
+Let's look at how it would perform for the mean
+
+```{r}
+set.seed(17)
+numBoot<-1000
+mySecondNonParamBoot<-rep(0,numBoot)
+initialSampleSize<-length(smallDataset)
+#11 is the size of the small dataset 
+
+for (k in 1:numBoot){
+  thisDataSet<-sample(x=smallDataset,replace = TRUE, size = initialSampleSize) #generates a dataset of size 11 by resampling from the original data/empirical distribution. This is the only difference with our parametric bootstrap chunk!
+  mySecondNonParamBoot[k]<-mean(thisDataSet) #computes the median/stat of interest here for this dataset
+  }
+hist(mySecondNonParamBoot,breaks=50)
+summary(mySecondNonParamBoot)
+```
+```{r}
+sampleMean<-mean(thisDataSet)
+hist(mySecondNonParamBoot-sampleMean,breaks=50)
+summary(mySecondNonParamBoot-sampleMean)
+```
+Look at the quantiles of $\bar{X}_n^*-\bar{X}_n$
+```{r}
+quantile(mySecondNonParamBoot-sampleMean,probs = c(.025,.975)) 
+```
+
+Pivotal interval computation (based on the mean)
+```{r}
+sort(sampleMean-quantile(mySecondNonParamBoot-sampleMean,probs = c(.025,.975)) )
+```
+
