@@ -1,8 +1,6 @@
 ---
 title: "R Notebook on parametric bootstrap and resampling"
-output:
-  html_document:
-    df_print: paged
+author @ Tess
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
