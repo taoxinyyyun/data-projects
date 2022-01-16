@@ -1,0 +1,81 @@
+---
+title: "Stat 135 Section 4"
+output: html_document
+author: GSI - Victor Choi
+---
+
+**Exercise 1.**  
+
+#### Bootstrap Confidence Intervals
+
+Given the below sample of 20 data points, and find a Normal, Percentile, and Pivotal confidence interval for log(lambda). 
+
+We believe our sample comes from a Poisson distribution process, but we don't know what the true parameter lambda is.  
+
+```{r}
+# Code from previous section
+
+set.seed(1)
+# Parametric Bootstrap of Poisson
+
+# Data Set provided
+pois_sample <- rpois(20, 3)
+
+# Bootstrap Process - data for each iteration saved in estLogMean
+numReps <- 1000
+n <- 20
+
+estLogMean <- rep(0, numReps)
+
+for (k in 1:numReps) {
+  
+  data <- rpois(n, mean(pois_sample))
+  estLogMean[k]<-log(mean(data))
+}
+
+```
+
+```{r}
+# Print 95% Normal, Percentile, and Pivotal confidence intervals for our data
+
+# Add your code below
+
+
+```
+
+
+
+**Exercise 2** 
+
+#### Plotting distributions
+
+For the below 2 data sets, use a boxplot, qqplot, and histogram to understand the difference between the 2 data sets.
+Describe briefly the strengths and weaknesses of each plotting method.
+
+```{r}
+# Simulate data from two distributions
+
+# T-distribution, 10 degrees of freedom
+t_dist = rt(10000, 10, 0)
+
+# Normal distribution
+n_dist = rnorm(1000)
+
+
+```
+
+```{r}
+# Add your code below
+
+
+```
+
+
+**Exercise 3 (Optional)** 
+
+Repeat Exercise 2 with different numbers of degrees of freedom for the t distribution.
+
+
+
+
+
