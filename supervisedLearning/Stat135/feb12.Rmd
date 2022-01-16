@@ -1,0 +1,205 @@
+---
+title: "feb12"
+author: "JE Hug"
+date: "2/10/2021"
+output: html_document
+---
+
+# Black Scholes
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# read in data using readr it reads nicely!
+spdat <- read_csv(file="./data/sp500Historical.csv",
+                  col_types ="cnnnnnn" )
+
+
+# drop all variables that are NA
+spdat <- spdat %>% drop_na()
+
+# calculate log returns
+logReturns <- log(spdat$`Adj Close`[-length(spdat$`Adj Close`)])-log(spdat$`Adj Close`[-1])
+
+# base R plot
+ts.plot(logReturns)
+```
+
+Okay what exactly is Black-Scholes? First some finance background, we are attempting to price a European call option. A European call option is the right to buy a stock at some fixed strike price in the future. Essentially if we believe the stock price will go up past the strike price we can buy a call option and then we can buy the stock from someone at a cheaper price than the market price at that time and make money. There is a mathematical way to derive the "correct" price for this given by Black-Scholes formula.
+
+$$ C= S_0\Phi(d_+)-K\Phi(d_-)\exp(-rT)$$
+
+$$d_\pm= \frac{\log(S_0/K)+ (r \pm \sigma^{2}/2)T}{\sigma \sqrt T} $$
+
+```{r}
+# These parameters are given in the question
+
+S <- 2000 # current price of asset
+time <-  4/12 # Units are in years
+r <-  0.02 # risk free interest
+K <-  2015 # strike price 
+
+
+# Now, how do we estimate variance? In reality we don't know this!
+# In most cases, we can use the sample variance of the log returns
+
+sigmahat <- sqrt(var(logReturns))
+
+# Calculate Black Scholes price for our Call
+
+dplus <- (log(S/K) + (r + (sigmahat^2)/2)*time)/(sigmahat * sqrt(time))
+
+dminus <- (log(S/K) + (r - sigmahat^2/2)*time)/(sigmahat * sqrt(time))
+
+price <- pnorm(dplus)*S - pnorm(dminus)*(K*exp(-r*time))
+
+price
+```
+
+Hand written notes to use the delta method!
+
+# Question 44 Chapter 8
+
+The file bodytemp contains normal body temperature readings (degrees Fahrenheit) and heart rates (beats per minute) of 65 males (coded by 1) and 65 females (coded by 2) from Shoemaker (1996). Assuming that the population distributions are normal (an assumption that will be investigated in a later chapter), estimate the means and the standard deviations of the males and females. Form 95% confidence intervals for the means. Standard folklore is that the average body temperature is 98.6 degrees Fahrenheit. Does this appear to be the case? You can download `bodytemp.txt` from BCourses \> Files \> Data \> `bodytemp.txt`.
+
+```{r}
+# read in data
+
+bodytemp <- readr::read_csv(file = "./data/bodytemp.txt", col_types = "nfn")
+
+
+# filter 
+
+summary(bodytemp)
+
+male <- bodytemp %>% filter(gender == 1)
+
+female <- bodytemp %>% filter(gender == 2)
+
+```
+
+We will technically do something incorrect here in that since the population standard deviation is unknown we should be using t distribution, however we haven't learned the t distribution yet and for data of this size the normal is a decent approximation.
+
+```{r male CIs}
+# temp
+maleMean <- mean(male$temperature)
+maleSd <- sd(male$temperature)
+nmale <- length(male$temperature)
+
+# 95% CI temp 
+
+maleMean + c(qnorm(0.025)*maleSd/sqrt(nmale),
+             qnorm(0.975)*maleSd/sqrt(nmale))
+
+# rate
+
+maleMean <- mean(male$rate)
+maleSd <- sd(male$rate)
+nmale <- length(male$rate)
+
+# 95% CI temp 
+
+maleMean + c(qnorm(0.025)*maleSd/sqrt(nmale),
+             qnorm(0.975)*maleSd/sqrt(nmale))
+
+
+
+
+```
+
+```{r female CIs}
+
+# temp 
+femaleMean <- mean(female$temperature)
+femaleSd <- sd(female$temperature)
+nfemale <- length(female$temperature)
+
+# 95% CI temp
+
+femaleMean + c(qnorm(0.025)*femaleSd/sqrt(nfemale),
+             qnorm(0.975)*femaleSd/sqrt(nfemale))
+
+# rate
+femaleMean <- mean(female$rate)
+femaleSd <- sd(female$rate)
+nfemale <- length(female$rate)
+
+
+# 95% CI rate
+
+femaleMean + c(qnorm(0.025)*femaleSd/sqrt(nfemale),
+             qnorm(0.975)*femaleSd/sqrt(nfemale))
+
+
+```
+
+Neither of the CI's contain 98.6!
+
+# Bootstrap!
+
+Hopefully the motivation of the bootstrap makes sense! This will be very similar to the Professors example!
+
+A Gaussian distribution example! I will set the true parameter mean as $\theta = 1$ and we have a known variance $\sigma^2=1$
+
+```{r}
+set.seed(15)
+
+theta <- 1
+sizedata <- 15
+dataset <- rnorm(sizedata, mean = theta, sd = 1)
+
+# MLE for theta is just the sample mean
+
+mle <- mean(dataset)
+
+mle
+
+```
+
+```{r parametric bootstrap, message = F}
+numBoot <- 1000
+
+paramboot <- replicate(numBoot,
+                       mean(rnorm(n=sizedata, mean = mle)))
+
+
+hist(paramboot)
+
+# no density overlayed
+data.frame(x= paramboot) %>% ggplot()+
+  geom_histogram(aes(x=x,y=..density..))
+
+# theoretical density of the sample mean overlayed (centered at MLE)
+
+data.frame(x= paramboot) %>% ggplot()+
+  geom_histogram(aes(x=x,y=..density..))+
+  stat_function(fun=dnorm,args=list(mean=mle, sd=1/sqrt(sizedata)))
+
+```
+
+```{r nonparametric bootstrap}
+
+numBoot <- 1000
+
+nonparamboot <- replicate(numBoot,
+                          mean(sample(
+                            x = dataset, size = sizedata, replace = T
+                          )))
+
+summary(nonparamboot)
+
+# no density overlayed
+data.frame(x= nonparamboot) %>% ggplot()+
+  geom_histogram(aes(x=x,y=..density..))
+
+# theoretical density of the sample mean overlayed (centered at MLE)
+
+data.frame(x= nonparamboot) %>% ggplot()+
+  geom_histogram(aes(x=x,y=..density..))+
+  stat_function(fun=dnorm,args=list(mean=mle, sd=1/sqrt(sizedata)))
+
+
+```
