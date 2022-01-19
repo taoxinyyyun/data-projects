@@ -12,5 +12,5 @@ This is a repository for my data science projects from past coursework, datathon
 * Kaggle projects
 * Independent supervised learning projects
 
-#### 3. PandemicAging
+#### 3. Pandemic_Aging
 * Codes used in the pandemic aging research project.
